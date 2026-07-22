@@ -2980,6 +2980,8 @@ function ncBuildQuoteHTML(d) {
     <!-- ── REMARKS ── -->
     ${d.notes ? `<div style="padding:18px 28px;border-bottom:1px solid #e9ecf0;background:#fafbfc;">
       <div style="font-size:9px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#2779b7;margin-bottom:8px;">Remarks</div>
+      <p style="font-size:13px;color:#374151;margin:0;white-space:pre-line;">${d.notes}</p>
+    </div>` : ''}
   <!-- ── FOOTER ── -->
     <div style="background:#0a1628;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;">
       <div style="font-size:10px;color:rgba(255,255,255,0.4);line-height:1.6;">
@@ -3110,6 +3112,8 @@ function qlCard(q) {
       ${canOpenFile ? `<span style="display:inline-flex;align-items:center;gap:5px;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;letter-spacing:0.05em;">⚠️ FILE NOT OPENED</span>` : ''}
       ${q.status === 'file_opened' ? `<span style="font-size:12px;font-weight:700;color:#854d0e;">📂 ${q.fileNumber || 'File Active'}</span>` : ''}
       <button class="btn btn-ghost btn-sm" onclick="qlPreviewQuote('${q.id}')">👁 Preview</button>
+      <button class="btn btn-primary btn-sm" onclick="qlSavePDF('${q.id}')">📥 Save as PDF</button>
+      <button class="btn btn-wave btn-sm" onclick="qlEditQuote('${q.id}')">✏️ Edit</button>
     </div>
   </div>`;
 }
@@ -3162,6 +3166,72 @@ function qlPreviewQuote(id) {
   <option value="Abu Dhabi Airport (AUH) — Air">
   <option value="Sharjah Airport (SHJ) — Air">
 </datalist>
+
+<!-- ══ QUOTE DIRECTORY — EDIT MODAL ══ -->
+<div id="ql-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(10,22,40,0.55);z-index:9000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;width:100%;max-width:660px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 48px rgba(10,22,40,0.22);">
+    <input type="hidden" id="ql-edit-id">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#0a1628,#0e3460);padding:18px 24px;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:15px;font-weight:800;color:#fff;">✏️ Edit Quote</span>
+      <button onclick="document.getElementById('ql-edit-modal').style.display='none'" style="background:rgba(255,255,255,0.12);border:none;color:#fff;font-size:16px;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>
+    <!-- Body -->
+    <div style="padding:22px 24px;display:grid;gap:14px;">
+      <!-- Client -->
+      <div style="font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#2779b7;border-bottom:1px solid #e9ecf0;padding-bottom:6px;">Client Details</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Company</label><input id="qle-company" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Contact</label><input id="qle-contact" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Email</label><input id="qle-email" type="email" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Phone</label><input id="qle-phone" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+      </div>
+      <!-- Shipment -->
+      <div style="font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#2779b7;border-bottom:1px solid #e9ecf0;padding-bottom:6px;margin-top:4px;">Shipment Details</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Quote Ref</label><input id="qle-ref" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Mode</label><input id="qle-mode" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Incoterms</label><input id="qle-inco" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Origin</label><input id="qle-origin" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Destination</label><input id="qle-dest" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Transit Time</label><input id="qle-transit" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+      </div>
+      <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Routing / Via</label><input id="qle-routing" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+      <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Cargo Description</label><input id="qle-cargo" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+      <!-- Rates -->
+      <div style="font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#2779b7;border-bottom:1px solid #e9ecf0;padding-bottom:6px;margin-top:4px;">Rates</div>
+      <div style="display:grid;grid-template-columns:80px 1fr 80px 1fr;gap:10px;align-items:end;">
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Curr</label><input id="qle-freight-curr" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Ocean / Air Freight</label><input id="qle-freight" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Curr</label><input id="qle-local-curr" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Dubai Local Charges</label><input id="qle-local" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+      </div>
+      <!-- Extra lines -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <label style="font-size:11px;font-weight:700;color:#6b7280;">Additional Charges</label>
+          <button onclick="qlAddExtraLine()" style="background:#f0f7ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:12px;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;">+ Add Line</button>
+        </div>
+        <div id="qle-extra-lines"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:10px;align-items:end;">
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Currency</label><input id="qle-currency" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Total</label><input id="qle-total" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;font-weight:700;color:#fc570d;"></div>
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">AED Total (if applicable)</label><input id="qle-aed-total" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+      </div>
+      <!-- Footer fields -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Validity</label><input id="qle-validity" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;"></div>
+      </div>
+      <div><label style="font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">Remarks / Notes</label><textarea id="qle-notes" rows="3" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;resize:vertical;"></textarea></div>
+    </div>
+    <!-- Footer -->
+    <div style="padding:14px 24px;border-top:1px solid #e9ecf0;display:flex;gap:10px;justify-content:flex-end;background:#f9fafb;border-radius:0 0 14px 14px;">
+      <button onclick="document.getElementById('ql-edit-modal').style.display='none'" class="btn btn-ghost">Cancel</button>
+      <button onclick="qlSaveEdit()" class="btn btn-primary">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── LEAVE DELEGATION MODAL ── -->
 <div class="modal-overlay" id="leave-modal">
@@ -3226,6 +3296,164 @@ function qlPreviewQuote(id) {
 
 </body></html>`);
   win.document.close();
+}
+
+// ── Save existing quote directory entry as PDF ──
+function qlSavePDF(id) {
+  const entry = quoteLog.find(q => q.id === id);
+  if (!entry || !entry.data) { showToast('⚠️ No quote data found for this entry'); return; }
+  const quoteHTML = ncBuildQuoteHTML(entry.data);
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${entry.ref}</title>
+  <style>
+    @page { margin: 5mm; size: A4 portrait; }
+    body { margin: 0; padding: 0; background: #fff; font-family: 'Inter', Arial, sans-serif; }
+    @media print {
+      body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .quote-wrap { transform: scale(0.86); transform-origin: top left; width: 116%; }
+    }
+  </style>
+</head>
+<body>
+${quoteHTML}
+<scr` + `ipt>
+  window.onload = function() { setTimeout(function() { window.print(); }, 400); };
+<\/script>
+</body></html>`);
+  win.document.close();
+}
+
+// ── Edit an existing quote directory entry ──
+function qlEditQuote(id) {
+  const entry = quoteLog.find(q => q.id === id);
+  if (!entry || !entry.data) { showToast('⚠️ No quote data found for this entry'); return; }
+  const d = entry.data;
+
+  // Build extra charge rows HTML
+  const extraRowsHTML = (d.extraLines || []).map((l, i) => `
+    <div class="nc-extra-line-row" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+      <input class="nc-el-curr" style="width:72px;border:1px solid #d1d5db;border-radius:6px;padding:6px 8px;font-size:13px;" value="${l.curr||'AED'}">
+      <input class="nc-el-desc" style="flex:1;border:1px solid #d1d5db;border-radius:6px;padding:6px 8px;font-size:13px;" placeholder="Description" value="${(l.desc||'').replace(/"/g,'&quot;')}">
+      <input class="nc-el-amt" style="width:90px;border:1px solid #d1d5db;border-radius:6px;padding:6px 8px;font-size:13px;" placeholder="Amount" value="${l.amt||''}">
+      <button onclick="this.closest('.nc-extra-line-row').remove()" style="background:none;border:none;color:#dc2626;font-size:16px;cursor:pointer;padding:0 4px;">✕</button>
+    </div>`).join('');
+
+  const modal = document.getElementById('ql-edit-modal');
+  document.getElementById('ql-edit-id').value = id;
+
+  // Populate fields
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+  set('qle-company',  d.company);
+  set('qle-contact',  d.contact);
+  set('qle-email',    d.email);
+  set('qle-phone',    d.phone);
+  set('qle-ref',      d.ref);
+  set('qle-origin',   d.origin);
+  set('qle-dest',     d.dest);
+  set('qle-transit',  d.transit);
+  set('qle-routing',  d.routing);
+  set('qle-inco',     d.inco);
+  set('qle-mode',     d.modeLabel);
+  set('qle-cargo',    d.cargoHtml);
+  set('qle-currency', d.currency);
+  set('qle-freight-curr', d.freightCurr);
+  set('qle-freight',  d.freight);
+  set('qle-local-curr', d.localCurr);
+  set('qle-local',    d.local);
+  set('qle-total',    d.total);
+  set('qle-aed-total',d.aedTotal);
+  set('qle-validity', d.validity);
+  set('qle-notes',    d.notes);
+
+  document.getElementById('qle-extra-lines').innerHTML = extraRowsHTML;
+  modal.style.display = 'flex';
+}
+
+function qlAddExtraLine() {
+  const container = document.getElementById('qle-extra-lines');
+  const row = document.createElement('div');
+  row.className = 'nc-extra-line-row';
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+  row.innerHTML = `
+    <input class="nc-el-curr" style="width:72px;border:1px solid #d1d5db;border-radius:6px;padding:6px 8px;font-size:13px;" value="AED">
+    <input class="nc-el-desc" style="flex:1;border:1px solid #d1d5db;border-radius:6px;padding:6px 8px;font-size:13px;" placeholder="Description">
+    <input class="nc-el-amt" style="width:90px;border:1px solid #d1d5db;border-radius:6px;padding:6px 8px;font-size:13px;" placeholder="Amount">
+    <button onclick="this.closest('.nc-extra-line-row').remove()" style="background:none;border:none;color:#dc2626;font-size:16px;cursor:pointer;padding:0 4px;">✕</button>`;
+  container.appendChild(row);
+}
+
+async function qlSaveEdit() {
+  const id = document.getElementById('ql-edit-id').value;
+  const entry = quoteLog.find(q => q.id === id);
+  if (!entry) return;
+
+  const get = (elId) => document.getElementById(elId)?.value?.trim() || '';
+
+  // Collect extra lines
+  const extraLines = [];
+  document.querySelectorAll('#ql-edit-modal .nc-extra-line-row').forEach(row => {
+    const desc = row.querySelector('.nc-el-desc')?.value?.trim();
+    const amt  = row.querySelector('.nc-el-amt')?.value?.trim();
+    const curr = row.querySelector('.nc-el-curr')?.value || 'AED';
+    if (desc && amt) extraLines.push({ desc, amt, curr });
+  });
+
+  const updatedData = {
+    ...entry.data,
+    company:     get('qle-company'),
+    contact:     get('qle-contact'),
+    email:       get('qle-email'),
+    phone:       get('qle-phone'),
+    ref:         get('qle-ref'),
+    origin:      get('qle-origin'),
+    dest:        get('qle-dest'),
+    transit:     get('qle-transit'),
+    routing:     get('qle-routing'),
+    inco:        get('qle-inco'),
+    modeLabel:   get('qle-mode'),
+    cargoHtml:   get('qle-cargo'),
+    currency:    get('qle-currency'),
+    freightCurr: get('qle-freight-curr'),
+    freight:     get('qle-freight'),
+    localCurr:   get('qle-local-curr'),
+    local:       get('qle-local'),
+    total:       get('qle-total'),
+    aedTotal:    get('qle-aed-total'),
+    validity:    get('qle-validity'),
+    notes:       get('qle-notes'),
+    extraLines,
+  };
+
+  const { error } = await db.from('quote_log').update({
+    data_json: updatedData,
+    ref:       updatedData.ref,
+    company:   updatedData.company,
+    contact:   updatedData.contact,
+    email:     updatedData.email,
+    origin:    updatedData.origin,
+    dest:      updatedData.dest,
+    total:     updatedData.total,
+  }).eq('id', id);
+
+  if (error) { showToast('❌ Save failed: ' + error.message); return; }
+
+  // Update local cache
+  entry.data    = updatedData;
+  entry.ref     = updatedData.ref;
+  entry.company = updatedData.company;
+  entry.contact = updatedData.contact;
+  entry.email   = updatedData.email;
+  entry.origin  = updatedData.origin;
+  entry.dest    = updatedData.dest;
+  entry.total   = updatedData.total;
+
+  document.getElementById('ql-edit-modal').style.display = 'none';
+  showToast('✅ Quote updated successfully');
+  renderStaffPage('quotedir');
 }
 
 async function qlOpenFile(id) {
