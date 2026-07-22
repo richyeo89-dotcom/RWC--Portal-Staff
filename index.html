@@ -3370,6 +3370,15 @@ const VAT_CATEGORY_META = {
 };
 const VAT_CATEGORY_RATES = Object.fromEntries(Object.entries(VAT_CATEGORY_META).map(([k,v]) => [k, v.rate]));
 
+const RWC_BANK_DETAILS = {
+  beneficiary: 'RIVER WAVES CONNECT SHIPPING LLC',
+  bank: 'ABU DHABI COMMERCIAL BANK',
+  accountNo: '13767196820001',
+  iban: 'AE380030013767196820001',
+  swift: 'ADCBAEAA',
+  currency: 'AED'
+};
+
 function invRound2(n) { return Math.round((Number(n || 0) + Number.EPSILON) * 100) / 100; }
 
 function invComputeTotals(lineItems) {
@@ -3443,6 +3452,17 @@ function renderFinancePage() {
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
       <div><div class="page-title">Finance / Invoices</div><div class="page-sub">UAE VAT-compliant tax invoices &amp; credit notes · RWC TRN 104556479400003</div></div>
       <button class="btn btn-primary" onclick="openNewInvoiceBuilder(null)">+ New Invoice</button>
+    </div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title" style="margin:0 0 10px;border:none;padding:0;">🏦 Bank / Payment Details</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 24px;font-size:13px;color:var(--grey-600);">
+        <div><span style="color:var(--grey-400);">Beneficiary</span><br><strong style="color:var(--navy);">${RWC_BANK_DETAILS.beneficiary}</strong></div>
+        <div><span style="color:var(--grey-400);">Bank</span><br><strong style="color:var(--navy);">${RWC_BANK_DETAILS.bank}</strong></div>
+        <div><span style="color:var(--grey-400);">Account No</span><br><strong style="color:var(--navy);">${RWC_BANK_DETAILS.accountNo}</strong></div>
+        <div><span style="color:var(--grey-400);">IBAN</span><br><strong style="color:var(--navy);">${RWC_BANK_DETAILS.iban}</strong></div>
+        <div><span style="color:var(--grey-400);">Swift</span><br><strong style="color:var(--navy);">${RWC_BANK_DETAILS.swift}</strong></div>
+        <div><span style="color:var(--grey-400);">Currency</span><br><strong style="color:var(--navy);">${RWC_BANK_DETAILS.currency}</strong></div>
+      </div>
     </div>
     <div class="card" style="margin-bottom:16px;">
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
@@ -3637,9 +3657,16 @@ function renderInvoiceBuilderHTML(ctx) {
 function openNewInvoiceBuilder(shipmentId) {
   const shipment = shipmentId ? allShipments.find(s => s.id === shipmentId) : null;
   const suggestedLine = shipment ? {
-    description: `${shipment.mode || 'Freight'} — ${shipment.origin || ''} to ${shipment.destination || ''}`,
+    description: `${shipment.mode || 'Freight'} — ${shipment.origin || ''} to ${shipment.destination || ''}${shipment.commodity ? ` (${shipment.commodity})` : ''}`,
     quantity: 1, unit_rate: '', vat_category: 'international_freight', vat_rate: 0
   } : null;
+  const shipmentRefNotes = shipment ? [
+    shipment.file_number ? `Job File: ${shipment.file_number}` : null,
+    shipment.container_number ? `Container: ${shipment.container_number}` : null,
+    shipment.bl_number ? `BL No: ${shipment.bl_number}` : null,
+    shipment.vessel ? `Vessel: ${shipment.vessel}` : null,
+    shipment.carrier ? `Carrier: ${shipment.carrier}` : null
+  ].filter(Boolean).join(' · ') : '';
   invBuilderCtx = {
     id: null,
     document_type: 'invoice',
@@ -3649,7 +3676,7 @@ function openNewInvoiceBuilder(shipmentId) {
     shipment_id: shipmentId || null,
     currency: 'AED',
     fx_rate_to_aed: 1,
-    notes: '',
+    notes: shipmentRefNotes,
     lineItems: suggestedLine ? [suggestedLine] : [],
     original_invoice_id: null,
     originalRef: null
@@ -3928,6 +3955,19 @@ function buildInvoiceHTML(d) {
       <div style="font-size:9px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#2779b7;margin-bottom:8px;">Remarks</div>
       <p style="font-size:13px;color:#374151;margin:0;white-space:pre-line;">${d.notes}</p>
     </div>` : ''}
+
+    <!-- ── PAYMENT DETAILS ── -->
+    <div style="padding:16px 28px;border-bottom:1px solid #e9ecf0;background:#fafbfc;">
+      <div style="font-size:9px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#2779b7;margin-bottom:10px;">Payment Details</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:4px 24px;font-size:11.5px;color:#374151;">
+        <div><span style="color:#9ca3af;">Beneficiary:</span> <strong>${RWC_BANK_DETAILS.beneficiary}</strong></div>
+        <div><span style="color:#9ca3af;">Bank:</span> <strong>${RWC_BANK_DETAILS.bank}</strong></div>
+        <div><span style="color:#9ca3af;">Account No:</span> <strong>${RWC_BANK_DETAILS.accountNo}</strong></div>
+        <div><span style="color:#9ca3af;">Currency:</span> <strong>${RWC_BANK_DETAILS.currency}</strong></div>
+        <div><span style="color:#9ca3af;">IBAN:</span> <strong>${RWC_BANK_DETAILS.iban}</strong></div>
+        <div><span style="color:#9ca3af;">Swift:</span> <strong>${RWC_BANK_DETAILS.swift}</strong></div>
+      </div>
+    </div>
 
     <!-- ── FOOTER ── -->
     <div style="background:#0a1628;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;">
@@ -5285,7 +5325,7 @@ async function openJobFile(shipId) {
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         ${closed ? '<span class="status-pill status-delivered">File Closed</span>' : statusPill(s.status)}
         <button class="btn btn-wave btn-sm" onclick="openShipmentDetail('${s.id}')">📍 Tracking & Chat</button>
-        <button class="btn btn-secondary btn-sm" onclick="openNewInvoiceBuilder('${s.id}')">🧾 Create Invoice</button>
+        <button class="btn btn-secondary btn-sm" onclick="openNewInvoiceBuilder('${s.id}')">🧾 Generate Invoice</button>
         ${!closed && pct === 100 ? `<button class="btn btn-sm" style="background:var(--success);color:#fff;" onclick="closeJobFile('${s.id}')">✅ Close File</button>` : ''}
         ${closed ? `<button class="btn btn-ghost btn-sm" onclick="reopenJobFile('${s.id}')">↩ Reopen</button>` : ''}
       </div>
@@ -5369,7 +5409,7 @@ async function openJobFile(shipId) {
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
           <div class="card-title" style="margin:0;border:none;padding:0;">Invoices</div>
-          <button class="btn btn-primary btn-sm" onclick="openNewInvoiceBuilder('${s.id}')">+ New Invoice</button>
+          <button class="btn btn-primary btn-sm" onclick="openNewInvoiceBuilder('${s.id}')">🧾 Generate Invoice</button>
         </div>
         ${(fileInvoices || []).map(invCard).join('') || '<div style="text-align:center;padding:20px 0;color:var(--grey-400);font-size:13px;">No invoices raised for this file yet</div>'}
       </div>
