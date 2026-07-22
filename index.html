@@ -606,6 +606,7 @@ const CURRENCIES = [
 ];
 
 const CURRENCY_OPTS = CURRENCIES.map(c => `<option value="${c.code}">${c.code} — ${c.name}</option>`).join('');
+function currencyOptsHTML(selected) { return CURRENCIES.map(c => `<option value="${c.code}" ${c.code === selected ? 'selected' : ''}>${c.code} — ${c.name}</option>`).join(''); }
 function currLabel(code) { return CURRENCIES.find(c=>c.code===code)?.code || code || 'USD'; }
 function fmtAmt(v, code) {
   const n = parseFloat((String(v)||'').replace(/,/g,''));
@@ -3567,6 +3568,16 @@ function invRecalcTotals() {
   return totals;
 }
 
+function invToggleFxRow() {
+  const currEl = document.getElementById('inv-currency');
+  const row = document.getElementById('inv-fxrate-row');
+  const rateEl = document.getElementById('inv-fxrate');
+  if (!currEl || !row || !rateEl) return;
+  const isAed = currEl.value === 'AED';
+  row.style.display = isAed ? 'none' : 'flex';
+  if (isAed) rateEl.value = 1;
+}
+
 async function invFetchRate() {
   const currEl = document.getElementById('inv-currency');
   const rateEl = document.getElementById('inv-fxrate');
@@ -3607,11 +3618,13 @@ function renderInvoiceBuilderHTML(ctx) {
         <select id="inv-client" ${readonly ? 'disabled' : ''}>${clientOpts}</select>
       </div>
       <div class="field">
-        <label class="field-label">Currency &amp; FX Rate (AED per unit)</label>
+        <label class="field-label">Currency${ctx.currency && ctx.currency !== 'AED' ? ' &amp; FX Rate (AED per unit)' : ''}</label>
         <div style="display:flex;gap:8px;">
-          <select id="inv-currency" ${readonly ? 'disabled' : ''} style="flex:1;">${CURRENCY_OPTS}</select>
-          <input type="number" step="any" id="inv-fxrate" value="${ctx.fx_rate_to_aed ?? 1}" ${readonly ? 'disabled' : ''} style="width:100px;border:1px solid #d1d5db;border-radius:6px;padding:6px 8px;font-size:13px;">
-          ${!readonly ? `<button type="button" class="btn btn-ghost btn-sm" onclick="invFetchRate()">↻ Live Rate</button>` : ''}
+          <select id="inv-currency" ${readonly ? 'disabled' : ''} style="flex:1;" onchange="invToggleFxRow()">${currencyOptsHTML(ctx.currency || 'AED')}</select>
+          <div id="inv-fxrate-row" style="display:${(ctx.currency && ctx.currency !== 'AED') ? 'flex' : 'none'};gap:8px;">
+            <input type="number" step="any" id="inv-fxrate" value="${ctx.fx_rate_to_aed ?? 1}" ${readonly ? 'disabled' : ''} style="width:100px;border:1px solid #d1d5db;border-radius:6px;padding:6px 8px;font-size:13px;">
+            ${!readonly ? `<button type="button" class="btn btn-ghost btn-sm" onclick="invFetchRate()">↻ Live Rate</button>` : ''}
+          </div>
         </div>
       </div>
     </div>
