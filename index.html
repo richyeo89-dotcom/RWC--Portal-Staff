@@ -3006,6 +3006,19 @@ function ncBuildQuoteHTML(d) {
       <div style="font-size:9px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#2779b7;margin-bottom:8px;">Remarks</div>
       <p style="font-size:13px;color:#374151;margin:0;white-space:pre-line;">${d.notes}</p>
     </div>` : ''}
+
+    <!-- ── TERMS & CONDITIONS ── -->
+    <div style="padding:18px 28px;border-bottom:1px solid #e9ecf0;">
+      <div style="font-size:9px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#2779b7;margin-bottom:8px;">Terms &amp; Conditions</div>
+      <ul style="margin:0;padding-left:16px;font-size:10.5px;color:#6b7280;line-height:1.65;">
+        <li>This quotation is valid for ${d.validity} from the date of issue and is subject to change thereafter without notice.</li>
+        <li>Rates are subject to space, equipment and carrier availability at the time of booking confirmation.</li>
+        <li>Quoted rates exclude customs duties, taxes, demurrage, detention, storage and any charges not explicitly itemized above.</li>
+        <li>This document is a quotation only and does not constitute a contract of carriage or a booking confirmation.</li>
+        <li>All services are provided subject to River Waves Connect Shipping LLC's standard trading terms and conditions, available upon request.</li>
+        <li>Payment terms as separately agreed between the parties.</li>
+      </ul>
+    </div>
   <!-- ── FOOTER ── -->
     <div style="background:#0a1628;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;">
       <div style="font-size:10px;color:rgba(255,255,255,0.4);line-height:1.6;">
@@ -4062,7 +4075,7 @@ function ncGenerateQuote() {
 </head>
 <body>
 ${quoteHTML}
-<scr' + 'ipt>
+<scr` + `ipt>
   window.onload = function() {
     setTimeout(function() { window.print(); }, 400);
   };
