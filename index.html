@@ -3449,6 +3449,7 @@ function invCard(inv) {
       <div style="font-size:13px;font-weight:800;color:#fc570d;">${inv.currency} ${Number(inv.grand_total || 0).toFixed(2)}</div>
       <div style="font-size:11px;color:#9ca3af;">${dateStr}</div>
       ${invStatusBadge(inv.status)}
+      ${isIssued && !isCredit ? invWafeqBadge(inv) : ''}
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
       <button class="btn btn-ghost btn-sm" onclick="invPreview('${inv.id}')">👁 Preview</button>
@@ -3457,8 +3458,19 @@ function invCard(inv) {
       ${isDraft && isAdmin() ? `<button class="btn btn-sm" style="background:var(--success);color:#fff;" onclick="invIssue('${inv.id}')">✅ Issue</button>` : ''}
       ${isDraft ? `<button class="btn btn-ghost btn-sm" onclick="invVoidDraft('${inv.id}')">🗑 Void</button>` : ''}
       ${isIssued && !isCredit ? `<button class="btn btn-secondary btn-sm" onclick="invCreateCreditNote('${inv.id}')">↩ Credit Note</button>` : ''}
+      ${isIssued && !isCredit && !inv.wafeq_invoice_id ? `<button class="btn btn-ghost btn-sm" onclick="syncInvoiceToWafeq('${inv.id}')">🔗 Sync to Wafeq</button>` : ''}
     </div>
   </div>`;
+}
+
+function invWafeqBadge(inv) {
+  if (inv.wafeq_invoice_id) {
+    return `<span title="Wafeq invoice ${inv.wafeq_invoice_id}" style="font-size:10px;color:#15803d;">🔗 Synced to Wafeq</span>`;
+  }
+  if (inv.wafeq_sync_error) {
+    return `<span title="${inv.wafeq_sync_error.replace(/"/g, '&quot;')}" style="font-size:10px;color:#b91c1c;">⚠️ Wafeq sync failed</span>`;
+  }
+  return `<span style="font-size:10px;color:#9ca3af;">⏳ Not synced to Wafeq</span>`;
 }
 
 function renderFinancePage() {
@@ -3802,9 +3814,33 @@ async function invIssue(id) {
   const { data, error } = await db.rpc(rpcName, { [paramName]: id });
   if (error) { showToast('❌ ' + error.message); return; }
   showToast('✅ Issued as ' + data);
+  if (docType === 'invoice') syncInvoiceToWafeq(id);
   await invLoad();
   if (invBuilderCtx && invBuilderCtx.id === id) { await openInvoiceBuilder(id); }
   else { staffNav('finance'); }
+}
+
+// ── Push an issued invoice to Wafeq via Edge Function; never blocks issuance ──
+async function syncInvoiceToWafeq(id) {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/wafeq-sync`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invoiceId: id })
+    });
+    const result = await r.json();
+    if (result.ok) {
+      showToast('🔗 Synced to Wafeq');
+    } else {
+      showToast('⚠️ Wafeq sync failed — will retry from Finance');
+      console.error('Wafeq sync error:', result.error);
+    }
+  } catch (err) {
+    console.error('Wafeq sync error:', err);
+  } finally {
+    await invLoad();
+    invRenderList();
+  }
 }
 
 async function invVoidDraft(id) {
