@@ -79,9 +79,21 @@ async function ensureWafeqContact(supabase: any, apiKey: string, client: any): P
   return body.id;
 }
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ ok: false, error: 'POST only' }), { status: 405 });
+    return new Response(JSON.stringify({ ok: false, error: 'POST only' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -107,7 +119,7 @@ Deno.serve(async (req) => {
     }
     if (inv.wafeq_invoice_id) {
       return new Response(JSON.stringify({ ok: true, wafeqInvoiceId: inv.wafeq_invoice_id, alreadySynced: true }), {
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -167,12 +179,12 @@ Deno.serve(async (req) => {
     }).eq('id', invoiceId);
 
     return new Response(JSON.stringify({ ok: true, wafeqInvoiceId: body.id }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
     return new Response(JSON.stringify({ ok: false, error: String(err?.message || err) }), {
       status: 400,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
