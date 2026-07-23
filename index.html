@@ -622,10 +622,41 @@ const RWC_LOGO_DARK = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAB9AAAAJlCAY
 
 
 const { createClient } = supabase;
+
+// Ask the browser not to evict this origin's storage under pressure — the
+// main real-world cause of "logged out after reopening" in standalone/PWA
+// and mobile Safari contexts, where localStorage otherwise isn't protected
+// the way it is in a normal, frequently-visited browser tab.
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persist().catch(() => {});
+}
+
+// Defensive wrapper around localStorage: some standalone/PWA and mobile
+// Safari contexts (e.g. Private Browsing) throw on setItem/getItem instead
+// of just failing silently, which would otherwise crash auth entirely
+// instead of degrading to an in-memory (non-persistent) session.
+const authStorage = (() => {
+  try {
+    const testKey = '__rwc_storage_test__';
+    window.localStorage.setItem(testKey, '1');
+    window.localStorage.removeItem(testKey);
+    return window.localStorage;
+  } catch (e) {
+    console.warn('localStorage unavailable, falling back to in-memory session storage:', e);
+    const mem = new Map();
+    return {
+      getItem: (k) => (mem.has(k) ? mem.get(k) : null),
+      setItem: (k, v) => mem.set(k, v),
+      removeItem: (k) => mem.delete(k)
+    };
+  }
+})();
+
 const db = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
     persistSession: true,
-    storage: window.localStorage,
+    storage: authStorage,
+    storageKey: 'rwc-portal-auth',
     autoRefreshToken: true,
     detectSessionInUrl: false
   }
