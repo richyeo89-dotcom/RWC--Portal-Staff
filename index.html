@@ -622,7 +622,14 @@ const RWC_LOGO_DARK = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAB9AAAAJlCAY
 
 
 const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: true,
+    storage: window.localStorage,
+    autoRefreshToken: true,
+    detectSessionInUrl: false
+  }
+});
 
 let currentUser = null;
 let currentRole = null; // 'client' or 'staff'
