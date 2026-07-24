@@ -623,42 +623,48 @@ const RWC_LOGO_DARK = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAB9AAAAJlCAY
 
 const { createClient } = supabase;
 
-// Ask the browser not to evict this origin's storage under pressure — the
-// main real-world cause of "logged out after reopening" in standalone/PWA
-// and mobile Safari contexts, where localStorage otherwise isn't protected
-// the way it is in a normal, frequently-visited browser tab.
-if (navigator.storage && navigator.storage.persist) {
-  navigator.storage.persist().catch(() => {});
-}
+// ── "Remember me" session persistence via cookie ──
+// localStorage-based persistence (including requesting durable storage and
+// defensive fallbacks) did not survive standalone/PWA and mobile app
+// re-opens in practice. Cookies are a different storage mechanism with
+// different eviction rules, so instead of supabase-js's own storage-based
+// session persistence, we persist only the (opaque) refresh token in a
+// long-lived cookie and use it to re-establish the session on load.
+// Note: like localStorage, a JS-writable cookie offers no extra protection
+// against XSS reading the token — the benefit here is purely persistence
+// across standalone-app relaunches, not security.
+const REMEMBER_ME_COOKIE = 'rwc_refresh_token';
+const REMEMBER_ME_MAX_AGE = 30 * 24 * 60 * 60; // 30 days
 
-// Defensive wrapper around localStorage: some standalone/PWA and mobile
-// Safari contexts (e.g. Private Browsing) throw on setItem/getItem instead
-// of just failing silently, which would otherwise crash auth entirely
-// instead of degrading to an in-memory (non-persistent) session.
-const authStorage = (() => {
-  try {
-    const testKey = '__rwc_storage_test__';
-    window.localStorage.setItem(testKey, '1');
-    window.localStorage.removeItem(testKey);
-    return window.localStorage;
-  } catch (e) {
-    console.warn('localStorage unavailable, falling back to in-memory session storage:', e);
-    const mem = new Map();
-    return {
-      getItem: (k) => (mem.has(k) ? mem.get(k) : null),
-      setItem: (k, v) => mem.set(k, v),
-      removeItem: (k) => mem.delete(k)
-    };
-  }
-})();
+function setRememberMeCookie(refreshToken) {
+  document.cookie = `${REMEMBER_ME_COOKIE}=${encodeURIComponent(refreshToken)}; max-age=${REMEMBER_ME_MAX_AGE}; path=/; SameSite=Lax; Secure`;
+}
+function getRememberMeCookie() {
+  const match = document.cookie.match(new RegExp('(?:^|;\\s*)' + REMEMBER_ME_COOKIE + '=([^;]+)'));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+function clearRememberMeCookie() {
+  document.cookie = `${REMEMBER_ME_COOKIE}=; max-age=0; path=/; SameSite=Lax; Secure`;
+}
 
 const db = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
-    persistSession: true,
-    storage: authStorage,
-    storageKey: 'rwc-portal-auth',
+    persistSession: false, // we manage persistence ourselves, via cookie
     autoRefreshToken: true,
     detectSessionInUrl: false
+  }
+});
+
+// Keep the cookie in sync with whatever refresh token the client currently
+// holds — it rotates on every refresh (initial login, our manual restore
+// on load, and supabase-js's own background auto-refresh timer), so the
+// cookie has to track it or the next restore attempt will use a stale,
+// already-consumed token and fail.
+db.auth.onAuthStateChange((event, session) => {
+  if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.refresh_token) {
+    setRememberMeCookie(session.refresh_token);
+  } else if (event === 'SIGNED_OUT') {
+    clearRememberMeCookie();
   }
 });
 
@@ -6437,10 +6443,14 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 3500);
 }
 
-// Check for existing session on load
+// Check for existing session on load — via the remember-me cookie rather
+// than supabase-js's own (disabled) storage persistence.
 window.addEventListener('load', async () => {
-  const { data: { session } } = await db.auth.getSession();
-  if (session) await afterLogin(session.user);
+  const refreshToken = getRememberMeCookie();
+  if (!refreshToken) return;
+  const { data, error } = await db.auth.refreshSession({ refresh_token: refreshToken });
+  if (error || !data?.session) { clearRememberMeCookie(); return; }
+  await afterLogin(data.session.user);
 });
 </script>
 
